@@ -1,0 +1,4 @@
+{% from "partials/article_card.html" import article_card %}
+{% for article in articles %}
+  {{ article_card(article, bookmarked_urls) }}
+{% endfor %}

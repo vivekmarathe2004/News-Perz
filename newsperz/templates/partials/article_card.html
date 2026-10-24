@@ -1,0 +1,64 @@
+{% from "partials/macros.html" import bookmark_btn, story_source %}
+
+{% macro article_card(article, bookmarked_urls=[]) %}
+{% set art_url = article.get('url') or '#' %}
+{% set art_title = article.get('title') or 'Untitled article' %}
+{% set art_desc = article.get('description') or '' %}
+{% set art_image = article.get('urlToImage') or '' %}
+{% set art_source = story_source(article) %}
+{% set art_date = article.get('publishedAt') or '' %}
+{% set art_category = article.get('category') or '' %}
+{% set reasons = article.get('match_reasons') or [] %}
+
+<article class="article-card">
+  <div class="card-thumb{% if not art_image %} thumb-failed{% endif %}">
+    <a href="{{ art_url }}" target="_blank" rel="noopener noreferrer" tabindex="-1" aria-hidden="true">
+      {% if art_image %}
+        <img src="{{ art_image }}" alt="" loading="lazy" decoding="async" width="320" height="200" />
+      {% endif %}
+      <span class="card-thumb-placeholder"><span aria-hidden="true">&#128240;</span></span>
+    </a>
+  </div>
+
+  <div class="card-body">
+    <div class="card-labels">
+      {% if article.get('is_local_match') %}
+        <span class="label label--local"><span aria-hidden="true">&#128205;</span> Local match</span>
+      {% endif %}
+      {% if article.get('is_preferred_source') %}
+        <span class="label label--source"><span aria-hidden="true">&#9733;</span> Preferred source</span>
+      {% endif %}
+      {% for reason in reasons if 'Topic:' in reason %}
+        <span class="label label--topic">{{ reason.replace('Topic: ', '') }}</span>
+      {% endfor %}
+      {% if not reasons and art_category %}
+        <span class="label label--topic">{{ art_category }}</span>
+      {% endif %}
+    </div>
+
+    <h2 class="card-title">
+      <a href="{{ art_url }}" target="_blank" rel="noopener noreferrer">{{ art_title }}</a>
+    </h2>
+
+    {% if art_desc %}
+      <p class="card-desc">{{ art_desc | clip(220) }}</p>
+    {% endif %}
+
+    <div class="card-footer">
+      <div class="card-meta">
+        <span class="card-source">{{ art_source }}</span>
+        <span class="card-meta-dot" aria-hidden="true">&bull;</span>
+        <time class="card-date" datetime="{{ art_date }}">{{ art_date | timeago or art_date[:10] or 'Recently' }}</time>
+      </div>
+
+      <div class="card-actions">
+        {{ bookmark_btn(art_url, art_title, art_source, art_desc, art_image, art_date,
+                        art_url in (bookmarked_urls or [])) }}
+        <a href="{{ art_url }}" target="_blank" rel="noopener noreferrer" class="card-read-link">
+          Read original &#8599;<span class="sr-only"> (opens in a new tab)</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</article>
+{% endmacro %}

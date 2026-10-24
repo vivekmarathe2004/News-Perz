@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}{{ error_title }} — NewsPerz{% endblock %}
+
+{% block content %}
+<div class="empty-state error-state">
+  <p class="error-code" aria-hidden="true">{{ code }}</p>
+  <h1>{{ error_title }}</h1>
+  <p>{{ error_message }}</p>
+  <div class="error-actions">
+    <a href="{{ url_for('news.index') }}" class="btn btn--primary">Back to your feed</a>
+    <a href="{{ url_for('news.local_news') }}" class="btn btn--outline">Local news</a>
+  </div>
+</div>
+{% endblock %}

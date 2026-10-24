@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="NewsPerz — a personalized, location-first news feed for Indian readers." />
+  <meta name="csrf-token" content="{{ csrf_token or '' }}" />
+  <title>{% block title %}NewsPerz — Personalized News{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="icon" href="{{ url_for('static', filename='img/logo.svg') }}" type="image/svg+xml" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}" />
+  <script nonce="{{ csp_nonce }}">
+    // Applied before first paint so the theme never flashes.
+    try {
+      var stored = localStorage.getItem('newsperz-theme');
+      if (!stored) stored = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', stored);
+    } catch (e) {}
+  </script>
+</head>
+<body>
+
+  <a class="skip-link" href="#main-feed">Skip to news feed</a>
+
+  <!-- ====== TOP HEADER ====== -->
+  <header class="site-header">
+    <div class="header-inner">
+
+      <a href="{{ url_for('news.index') }}" class="header-logo" aria-label="NewsPerz home">
+        <span class="logo-mark" aria-hidden="true">N</span>
+        <span>News<span class="logo-perz">Perz</span></span>
+      </a>
+
+      <form class="header-search" action="{{ url_for('news.search') }}" method="get" role="search">
+        <span class="header-search-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+        </span>
+        <label class="sr-only" for="site-search">Search news</label>
+        <input id="site-search" type="search" name="q" placeholder="Search news, topics, your city…"
+               autocomplete="query" value="{{ query or request.args.get('q', '') }}" />
+        <button type="submit">Search</button>
+      </form>
+
+      <a href="{{ url_for('news.local_news') }}" class="header-location">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z"/><circle cx="12" cy="10" r="3"/>
+        </svg>
+        <span>{{ (location and location.city) or 'Pune' }}{% if location and location.area %} &bull; {{ location.area }}{% endif %}</span>
+      </a>
+
+      <button type="button" class="theme-toggle" id="themeToggle" aria-label="Switch to dark theme" title="Toggle theme">
+        <svg class="theme-toggle-icon theme-toggle-icon--sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/>
+        </svg>
+        <svg class="theme-toggle-icon theme-toggle-icon--moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>
+        </svg>
+      </button>
+
+      <nav class="header-nav" aria-label="Account">
+        {% if current_user.is_authenticated %}
+          <a href="{{ url_for('news.interests') }}" class="header-avatar-btn">
+            <span class="header-avatar" aria-hidden="true">{{ current_user.username[:1] | upper }}</span>
+            <span class="header-avatar-name">{{ current_user.username }}</span>
+          </a>
+          <form class="header-logout-form" action="{{ url_for('auth.logout') }}" method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+            <button type="submit" class="header-nav-link">Log out</button>
+          </form>
+        {% else %}
+          <a href="{{ url_for('auth.login') }}" class="header-nav-link">Sign in</a>
+          <a href="{{ url_for('auth.register') }}" class="header-nav-link header-nav-link--primary">Join free</a>
+        {% endif %}
+      </nav>
+
+      <button class="hamburger" id="hamburgerBtn" type="button" aria-label="Open navigation menu" aria-expanded="false" aria-controls="sidebarNav">
+        <span></span><span></span><span></span>
+      </button>
+
+    </div>
+  </header>
+
+  <!-- ====== FLASH MESSAGES ====== -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-container" role="status" aria-live="polite">
+        {% for category, message in messages %}
+          <div class="flash flash--{{ category }}">
+            <span>{{ message }}</span>
+            <button class="flash-close" type="button" aria-label="Dismiss message">&times;</button>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <!-- ====== 3-COLUMN EDITORIAL LAYOUT ====== -->
+  <div class="app-layout">
+
+    <aside class="sidebar" id="sidebarNav">
+      <nav aria-label="Primary">
+        {% set nav_items = [
+          (url_for('news.index'), 'for_you', 'For You', 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10'),
+          (url_for('news.local_news'), 'local', 'Local News', 'M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z M12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z'),
+          (url_for('news.bookmarks'), 'bookmarks', 'Saved Articles', 'M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z'),
+          (url_for('news.interests'), 'preferences', 'Preferences', 'M4 6h16M4 12h16M4 18h10'),
+        ] %}
+        <div class="sidebar-section">
+          <div class="sidebar-section-label">Feeds</div>
+          {% for href, mode, label, path in nav_items %}
+            <a href="{{ href }}" class="sidebar-link {% if page_mode == mode %}active{% endif %}"
+               {% if page_mode == mode %}aria-current="page"{% endif %}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="{{ path }}"/></svg>
+              <span>{{ label }}</span>
+            </a>
+          {% endfor %}
+        </div>
+
+        <div class="sidebar-section">
+          <div class="sidebar-section-label">Topics</div>
+          {% for cat in all_categories[:8] %}
+            <a href="{{ url_for('news.category', category_name=cat) }}"
+               class="sidebar-topic-link {% if category == cat %}active{% endif %}">
+              <span class="sidebar-topic-dot" aria-hidden="true"></span>
+              <span>{{ cat }}</span>
+            </a>
+          {% endfor %}
+          <a href="{{ url_for('news.interests') }}" class="sidebar-more-link">+ Manage topics</a>
+        </div>
+
+        <div class="sidebar-section">
+          <div class="sidebar-section-label">Trusted sources</div>
+          {% for pub in all_publishers[:6] %}
+            <a href="{{ url_for('news.source_news', source_name=pub) }}"
+               class="sidebar-topic-link {% if category == pub %}active{% endif %}">
+              <span class="sidebar-topic-dot" aria-hidden="true"></span>
+              <span>{{ pub }}</span>
+            </a>
+          {% endfor %}
+        </div>
+      </nav>
+    </aside>
+
+    <main class="main-feed" id="main-feed">
+      {% block content %}{% endblock %}
+    </main>
+
+    <aside class="right-panel">
+      <div class="panel-block">
+        <div class="panel-title">Your location</div>
+        <div class="panel-location-name">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z M12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>
+          <span>{{ (location and location.city) or 'Pune' }}</span>
+        </div>
+        <div class="panel-location-sub">
+          {% if location and location.area %}{{ location.area }}, {% endif %}{{ (location and location.state) or 'Maharashtra' }}, {{ (location and location.country) or 'India' }}
+        </div>
+        <a href="{{ url_for('news.local_news') }}" class="panel-text-link">Explore local news &rarr;</a>
+      </div>
+
+      <div class="panel-block">
+        <div class="panel-title">Your topics</div>
+        {% if topics %}
+          <div class="panel-topic-chips">
+            {% for t in topics %}
+              <a href="{{ url_for('news.category', category_name=t) }}" class="panel-chip">{{ t }}</a>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="panel-empty">No topics selected yet.</p>
+        {% endif %}
+        <a href="{{ url_for('news.interests') }}" class="panel-text-link">Edit topics &rarr;</a>
+      </div>
+
+      <div class="panel-block">
+        <div class="panel-title">Explore</div>
+        <ul class="panel-topic-list">
+          {% for cat in all_categories[8:13] %}
+            <li class="panel-topic-item">
+              <span class="panel-topic-num" aria-hidden="true">{{ loop.index }}</span>
+              <a href="{{ url_for('news.category', category_name=cat) }}">{{ cat }}</a>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </aside>
+
+  </div>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-logo">News<span>Perz</span></div>
+      <p class="footer-tagline">A personalized, location-first news recommendation system</p>
+      <p class="footer-copy">&copy; {{ current_year }} NewsPerz &bull; Live headlines from Google News RSS</p>
+    </div>
+  </footer>
+
+  <nav class="mobile-bottom-nav" aria-label="Mobile navigation">
+    <div class="mobile-nav-inner">
+      {% set mobile_items = [
+        (url_for('news.index'), 'for_you', 'For You', 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10'),
+        (url_for('news.local_news'), 'local', 'Local', 'M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z'),
+        (url_for('news.search'), 'search', 'Search', 'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16z M21 21l-4.35-4.35'),
+        (url_for('news.bookmarks'), 'bookmarks', 'Saved', 'M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z'),
+        (url_for('news.interests'), 'preferences', 'Profile', 'M4 6h16M4 12h16M4 18h10'),
+      ] %}
+      {% for href, mode, label, path in mobile_items %}
+        <a href="{{ href }}" class="mobile-nav-item {% if page_mode == mode %}active{% endif %}"
+           {% if page_mode == mode %}aria-current="page"{% endif %}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="{{ path }}"/></svg>
+          <span>{{ label }}</span>
+        </a>
+      {% endfor %}
+    </div>
+  </nav>
+
+  <div class="nav-scrim" id="navScrim" hidden></div>
+
+  <script src="{{ url_for('static', filename='js/main.js') }}" nonce="{{ csp_nonce }}" defer></script>
+</body>
+</html>

@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}Preferences — NewsPerz{% endblock %}
+
+{% block content %}
+<div class="section-header">
+  <div>
+    <h1 class="section-title">Customize your news</h1>
+    <p class="section-sub">Location, topics, publishers and how your feed is ordered.</p>
+  </div>
+</div>
+
+{% if not current_user.is_authenticated %}
+  <div class="feed-notice feed-notice--info">
+    <span>Preferences are stored in this browser until you <a href="{{ url_for('auth.register') }}">create an account</a> — then they follow you everywhere.</span>
+  </div>
+{% endif %}
+
+<form class="pref-form" action="{{ url_for('news.interests') }}" method="post"
+      data-cities='{{ cities_with_areas | tojson }}'
+      data-states='{{ city_states | tojson }}'>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+
+  <section class="pref-card" aria-labelledby="pref-location">
+    <div class="pref-card-hd">
+      <span class="pref-card-icon" aria-hidden="true">&#128205;</span>
+      <div>
+        <h2 class="pref-card-title" id="pref-location">Where you are</h2>
+        <p class="pref-card-sub">City and neighbourhood drive the Local page and ranking.</p>
+      </div>
+    </div>
+
+    <div class="pref-grid">
+      <div class="form-group">
+        <label for="city" class="form-label">City</label>
+        <select id="city" name="city" class="form-input form-select" data-city-select>
+          {% for city in cities_with_areas.keys() %}
+            <option value="{{ city }}" {% if city == location.city %}selected{% endif %}>{{ city }}</option>
+          {% endfor %}
+          {% if location.city not in cities_with_areas %}
+            <option value="{{ location.city }}" selected>{{ location.city }}</option>
+          {% endif %}
+          <option value="__other__">Another city…</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="area" class="form-label">Neighbourhood <span class="form-optional">(optional)</span></label>
+        <input type="text" id="area" name="area" class="form-input" list="areaOptions"
+               value="{{ location.area }}" placeholder="e.g. Hinjewadi"
+               maxlength="80" autocomplete="off" data-area-input />
+        <datalist id="areaOptions" data-area-options>
+          {% for area in cities_with_areas.get(location.city, []) %}
+            <option value="{{ area }}"></option>
+          {% endfor %}
+        </datalist>
+      </div>
+
+      <div class="form-group">
+        <label for="state" class="form-label">State</label>
+        <input type="text" id="state" name="state" class="form-input"
+               value="{{ location.state }}" maxlength="80" placeholder="e.g. Maharashtra" />
+      </div>
+
+      <div class="form-group">
+        <label for="country" class="form-label">Country</label>
+        <input type="text" id="country" name="country" class="form-input"
+               value="{{ location.country }}" maxlength="60" placeholder="India" />
+      </div>
+    </div>
+  </section>
+
+  <section class="pref-card" aria-labelledby="pref-topics">
+    <div class="pref-card-hd">
+      <span class="pref-card-icon" aria-hidden="true">&#127991;&#65039;</span>
+      <div>
+        <h2 class="pref-card-title" id="pref-topics">Topics you follow</h2>
+        <p class="pref-card-sub">Each matching topic lifts a story in your ranking.</p>
+      </div>
+    </div>
+    <div class="pref-options">
+      {% for topic in all_categories %}
+        <label class="topic-label {% if topic in current_topics %}topic-label--checked{% endif %}">
+          <input type="checkbox" class="topic-checkbox" name="topics" value="{{ topic }}"
+                 {% if topic in current_topics %}checked{% endif %} />
+          <span>{{ topic }}</span>
+        </label>
+      {% endfor %}
+    </div>
+    <p class="form-hint">Leave all unchecked for a general news feed.</p>
+  </section>
+
+  <section class="pref-card" aria-labelledby="pref-sources">
+    <div class="pref-card-hd">
+      <span class="pref-card-icon" aria-hidden="true">&#128240;</span>
+      <div>
+        <h2 class="pref-card-title" id="pref-sources">Trusted publishers</h2>
+        <p class="pref-card-sub">Stories from these outlets get a boost.</p>
+      </div>
+    </div>
+    <div class="pref-options">
+      {% for pub in all_publishers %}
+        <label class="topic-label {% if pub in current_publishers %}topic-label--checked{% endif %}">
+          <input type="checkbox" class="topic-checkbox" name="publishers" value="{{ pub }}"
+                 {% if pub in current_publishers %}checked{% endif %} />
+          <span>{{ pub }}</span>
+        </label>
+      {% endfor %}
+    </div>
+    <p class="form-hint">Leave all unchecked to rank every publisher equally.</p>
+  </section>
+
+  <section class="pref-card" aria-labelledby="pref-sort">
+    <div class="pref-card-hd">
+      <span class="pref-card-icon" aria-hidden="true">&#8645;</span>
+      <div>
+        <h2 class="pref-card-title" id="pref-sort">How to order your feed</h2>
+        <p class="pref-card-sub">You can change this from any feed page too.</p>
+      </div>
+    </div>
+    <fieldset class="pref-radio-group">
+      <legend class="sr-only">Sort order</legend>
+      {% for value, label in sort_options %}
+        <label class="pref-radio">
+          <input type="radio" name="sort_by" value="{{ value }}"
+                 {% if value == current_sort %}checked{% endif %} />
+          <span>{{ label }}</span>
+        </label>
+      {% endfor %}
+    </fieldset>
+  </section>
+
+  <div class="pref-actions">
+    <button type="submit" class="btn btn--primary">Save preferences</button>
+    <a href="{{ url_for('news.index') }}" class="btn btn--outline">Cancel</a>
+  </div>
+</form>
+{% endblock %}

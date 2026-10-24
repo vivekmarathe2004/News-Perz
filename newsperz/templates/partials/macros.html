@@ -1,0 +1,87 @@
+{% macro bookmark_btn(url, title, source='', description='', image='', published_at='', bookmarked=False, css_class='bookmark-btn') %}
+<button type="button"
+        class="{{ css_class }} {% if bookmarked %}bookmarked{% endif %}"
+        aria-pressed="{{ 'true' if bookmarked else 'false' }}"
+        aria-label="{{ 'Remove saved story: ' if bookmarked else 'Save story: ' }}{{ title | e }}"
+        title="{{ 'Remove from Saved' if bookmarked else 'Save for later' }}"
+        data-url="{{ url | e }}"
+        data-title="{{ title | e }}"
+        data-source="{{ source | e }}"
+        data-description="{{ description | e }}"
+        data-image="{{ image | e }}"
+        data-published-at="{{ published_at | e }}">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+</button>
+{% endmacro %}
+
+
+{% macro story_source(story, fallback='News Desk') %}
+{%- set src = story.get('source') if story else none -%}
+{{ (src.get('name') if src is mapping else src) or fallback }}
+{%- endmacro %}
+
+
+{% macro featured_story(story, bookmarked_urls, label='Top Match') %}
+{% if story %}
+  {% set f_url = story.get('url') or '#' %}
+  {% set f_title = story.get('title') or 'Featured story' %}
+  {% set f_desc = story.get('description') or '' %}
+  {% set f_img = story.get('urlToImage') or '' %}
+  {% set f_date = story.get('publishedAt') or '' %}
+  <div class="featured-card">
+    <div class="featured-body">
+      <div class="featured-labels">
+        <span class="label label--featured">{{ label }}</span>
+        {% if story.get('is_local_match') %}
+          <span class="label label--local"><span aria-hidden="true">&#128205;</span> Local match</span>
+        {% endif %}
+        {% for reason in story.get('match_reasons') or [] %}
+          {% if 'Topic:' in reason %}
+            <span class="label label--topic">{{ reason.replace('Topic: ', '') }}</span>
+          {% endif %}
+        {% endfor %}
+      </div>
+
+      <h1 class="featured-title">
+        <a href="{{ f_url }}" target="_blank" rel="noopener noreferrer">{{ f_title }}</a>
+      </h1>
+
+      {% if f_desc %}<p class="featured-desc">{{ f_desc | clip(280) }}</p>{% endif %}
+
+      <div class="featured-footer">
+        <div class="featured-meta">
+          <span class="featured-source">{{ story_source(story, 'Top News') }}</span>
+          <span class="featured-dot" aria-hidden="true">&bull;</span>
+          <time class="card-date" datetime="{{ f_date }}">{{ f_date | timeago or f_date[:10] or 'recent' }}</time>
+        </div>
+        <div class="featured-actions">
+          {{ bookmark_btn(f_url, f_title, story_source(story, 'Top News'), f_desc, f_img, f_date,
+                          f_url in (bookmarked_urls or []), 'bookmark-btn bookmark-btn--lg') }}
+          <a href="{{ f_url }}" target="_blank" rel="noopener noreferrer" class="btn btn--primary btn--sm">
+            Read story &#8599;
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="featured-image-wrap">
+      {% if f_img %}
+        <img src="{{ f_img }}" alt="{{ f_title | truncate(60) }}" class="featured-image" loading="eager" />
+      {% endif %}
+      <div class="featured-image-placeholder" aria-hidden="true"><span>&#128240;</span></div>
+    </div>
+  </div>
+{% endif %}
+{% endmacro %}
+
+
+{% macro feed_status_note() %}
+<div class="feed-status" role="status" aria-live="polite">
+  <div class="skeleton-group" hidden>
+    <div class="skeleton skeleton--row"></div>
+    <div class="skeleton skeleton--row skeleton--row-short"></div>
+    <div class="skeleton skeleton--row"></div>
+  </div>
+  <p class="feed-status-text" hidden></p>
+</div>
+{% endmacro %}

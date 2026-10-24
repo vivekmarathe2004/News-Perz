@@ -1,0 +1,66 @@
+{% extends "auth/auth_base.html" %}
+
+{% block title %}Create account — NewsPerz{% endblock %}
+
+{% block content %}
+<div class="auth-card">
+  <div class="auth-panel">
+    <div class="auth-panel-logo">News<span>Perz</span></div>
+    <p class="auth-panel-text">
+      Join readers getting news tailored to their interests — from your city to the world.
+    </p>
+    <ul class="auth-panel-list">
+      <li>Pick your topics and trusted publishers</li>
+      <li>Set your city and neighbourhood</li>
+      <li>Keep your saved stories in one place</li>
+    </ul>
+    <div class="auth-panel-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+  </div>
+
+  <div class="auth-body">
+    <div class="auth-hd">
+      <div class="auth-emoji" aria-hidden="true">&#127881;</div>
+      <h1 class="auth-title">Create your account</h1>
+      <p class="auth-sub">Takes under a minute</p>
+    </div>
+
+    <form class="auth-form" action="{{ url_for('auth.register', next=safe_next) if safe_next else url_for('auth.register') }}" method="post" novalidate>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+
+      <div class="form-group">
+        <label for="username" class="form-label">Username</label>
+        <input type="text" id="username" name="username" class="form-input"
+               placeholder="e.g. aditya_m" required autocomplete="username"
+               minlength="3" maxlength="32" pattern="[A-Za-z0-9._-]{3,32}"
+               value="{{ form_username }}" />
+        <p class="form-hint">3–32 characters: letters, numbers, dot, dash or underscore.</p>
+      </div>
+
+      <div class="form-group">
+        <label for="email" class="form-label">Email address</label>
+        <input type="email" id="email" name="email" class="form-input"
+               placeholder="you@example.com" required autocomplete="email"
+               maxlength="120" value="{{ form_email }}" />
+      </div>
+
+      <div class="form-group">
+        <label for="password" class="form-label">Password</label>
+        <div class="input-wrap">
+          <input type="password" id="password" name="password" class="form-input"
+                 placeholder="At least 8 characters" required autocomplete="new-password"
+                 minlength="8" maxlength="128" aria-describedby="password-hint" />
+          <button type="button" class="toggle-pw" data-target="password" aria-label="Show password" aria-pressed="false">&#128065;</button>
+        </div>
+        <p class="form-hint" id="password-hint">Minimum 8 characters.</p>
+      </div>
+
+      <button type="submit" class="btn btn--primary btn--full">Create account &rarr;</button>
+    </form>
+
+    <p class="auth-footer">
+      Already have an account?
+      <a href="{{ url_for('auth.login', next=safe_next) if safe_next else url_for('auth.login') }}" class="auth-link">Sign in &rarr;</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

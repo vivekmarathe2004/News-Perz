@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 190 42" fill="none" role="img" aria-label="NewsPerz logo">
+  <!-- Red pill background -->
+  <rect x="1" y="4" width="34" height="34" rx="9" fill="#e63946"/>
+  <!-- N letterform -->
+  <polyline points="9,32 9,10 23,32 23,10" fill="none" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Wordmark -->
+  <text x="42" y="30" font-family="Inter,Segoe UI,system-ui,sans-serif" font-size="20" font-weight="900" fill="#ffffff" letter-spacing="-0.8">News</text>
+  <text x="102" y="30" font-family="Inter,Segoe UI,system-ui,sans-serif" font-size="20" font-weight="900" fill="#e63946" letter-spacing="-0.8">Perz</text>
+</svg>

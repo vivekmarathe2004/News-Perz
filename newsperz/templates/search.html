@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% from "partials/article_card.html" import article_card with context %}
+
+{% block title %}{% if query %}&ldquo;{{ query }}&rdquo; — {% endif %}Search — NewsPerz{% endblock %}
+
+{% block content %}
+
+  {# ===== Search box ===== #}
+  <div class="search-header">
+    <p class="page-kicker">Live discovery</p>
+    <h1>Search all news &amp; local updates</h1>
+
+    <form class="search-bar-lg" action="{{ url_for('news.search') }}" method="get" role="search">
+      {% set search_city = (location and location.city) or 'your city' %}
+      <label class="sr-only" for="search-q">Search keywords, topics, publishers or {{ search_city }} local terms</label>
+      <input id="search-q" type="search" name="q" autocomplete="off"
+             placeholder="Search {{ search_city }}, topics, publishers&hellip;" value="{{ query | e }}" />
+      <button type="submit" class="btn btn--primary">Search</button>
+    </form>
+
+    <div class="search-suggestions">
+      <span class="suggestions-label">Popular searches:</span>
+      {% for term in (topics or all_categories)[:6] %}
+        <a href="{{ url_for('news.search', q=term, sort=active_sort) }}" class="suggestion-pill">{{ term }}</a>
+      {% endfor %}
+    </div>
+  </div>
+
+  {# ===== Filter bar ===== #}
+  {% if query %}
+    <div class="filter-bar">
+      <div class="filter-bar-group">
+        <span class="perz-bar-label" id="search-topic-label">Topic:</span>
+        <div class="filter-chip-group" role="group" aria-labelledby="search-topic-label">
+          <a href="{{ url_for('news.search', q=query, source=active_source, city=active_city, sort=active_sort) }}"
+             class="filter-chip{% if not active_topic %} chip-active{% endif %}"
+             {% if not active_topic %}aria-current="page"{% endif %}>All topics</a>
+          {% for t in all_categories %}
+            <a href="{{ url_for('news.search', q=query, topic=t, source=active_source, city=active_city, sort=active_sort) }}"
+               class="filter-chip{% if active_topic == t %} chip-active{% endif %}"
+               {% if active_topic == t %}aria-current="page"{% endif %}>{{ t }}</a>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="filter-bar-group">
+        <span class="perz-bar-label" id="search-source-label">Source:</span>
+        <div class="filter-chip-group" role="group" aria-labelledby="search-source-label">
+          <a href="{{ url_for('news.search', q=query, topic=active_topic, city=active_city, sort=active_sort) }}"
+             class="filter-chip{% if not active_source %} chip-active{% endif %}"
+             {% if not active_source %}aria-current="page"{% endif %}>All sources</a>
+          {% for p in all_publishers %}
+            <a href="{{ url_for('news.search', q=query, topic=active_topic, source=p, city=active_city, sort=active_sort) }}"
+               class="filter-chip{% if active_source == p %} chip-active{% endif %}"
+               {% if active_source == p %}aria-current="page"{% endif %}>{{ p }}</a>
+          {% endfor %}
+        </div>
+      </div>
+
+      <form class="filter-bar-group filter-form" action="{{ url_for('news.search') }}" method="get">
+        <label class="form-label" for="search-city">City:</label>
+        <div class="filter-form-row">
+          <select id="search-city" name="city" class="form-input form-select filter-select">
+            <option value="" {% if not active_city %}selected{% endif %}>Any city</option>
+            {% for city in cities_with_areas %}
+              <option value="{{ city | e }}" {% if active_city == city %}selected{% endif %}>{{ city }}</option>
+            {% endfor %}
+          </select>
+          <input type="hidden" name="q" value="{{ query | e }}" />
+          <input type="hidden" name="topic" value="{{ active_topic | e }}" />
+          <input type="hidden" name="source" value="{{ active_source | e }}" />
+          <input type="hidden" name="sort" value="{{ active_sort | e }}" />
+          <button type="submit" class="btn btn--outline btn--sm">Apply</button>
+        </div>
+      </form>
+
+      <div class="filter-bar-group">
+        <span class="perz-bar-label" id="search-sort-label">Sort:</span>
+        <div class="filter-chip-group" role="group" aria-labelledby="search-sort-label">
+          {% for value, label in sort_options %}
+            <a href="{{ url_for('news.search', q=query, topic=active_topic, source=active_source, city=active_city, sort=value) }}"
+               class="filter-chip{% if active_sort == value %} chip-active{% endif %}"
+               {% if active_sort == value %}aria-current="page"{% endif %}>{{ label }}</a>
+          {% endfor %}
+        </div>
+      </div>
+
+      {% if active_topic or active_source or active_city %}
+        <div class="filter-bar-group">
+          <a href="{{ url_for('news.search', q=query, sort=active_sort) }}" class="perz-chip perz-chip--edit">
+            <span>Clear filters &times;</span>
+          </a>
+        </div>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {# ===== Results ===== #}
+  {% if not feed_ok %}
+    <div class="feed-notice feed-notice--error">
+      <h2 class="section-title">Live provider unavailable</h2>
+      <p>We could not reach the news provider, so &ldquo;{{ query }}&rdquo; has no results to check against.</p>
+      <a href="{{ url_for('news.search', q=query, topic=active_topic, source=active_source, city=active_city, sort=active_sort) }}" class="btn btn--outline btn--sm">Reload results</a>
+    </div>
+  {% elif not query %}
+    <div class="empty-state">
+      <div class="empty-state-icon" aria-hidden="true">&#128269;</div>
+      <h3>Search {{ (location and location.city) or 'topics' }}, topics, publishers&hellip;</h3>
+      <p>Type a keyword above to search live headlines, local reports and your followed sources.</p>
+      <a href="{{ url_for('news.index') }}" class="btn btn--outline">Back to your feed</a>
+    </div>
+  {% elif story_count %}
+    <div class="section-header">
+      <h2 class="section-title">Results for &ldquo;{{ query }}&rdquo;</h2>
+      <span class="section-count">{{ story_count }} {% if story_count == 1 %}story{% else %}stories{% endif %}</span>
+    </div>
+
+    <div class="article-feed"
+         data-feed
+         data-feed-mode="{{ page_mode }}"
+         data-feed-offset="{{ offset }}"
+         data-feed-total="{{ total_stories }}"
+         data-feed-has-more="{{ 'true' if has_more else 'false' }}">
+      {% for article in articles %}
+        {{ article_card(article, bookmarked_urls) }}
+      {% endfor %}
+    </div>
+    <div class="feed-sentinel" data-feed-sentinel aria-hidden="true"></div>
+    <div class="feed-status" role="status" aria-live="polite">
+      <div class="skeleton-group" hidden>
+        <div class="skeleton skeleton--row"></div>
+        <div class="skeleton skeleton--row skeleton--row-short"></div>
+        <div class="skeleton skeleton--row"></div>
+      </div>
+      <p class="feed-status-text" hidden>Loading more results&hellip;</p>
+    </div>
+  {% else %}
+    <div class="section-header">
+      <h2 class="section-title">Results for &ldquo;{{ query }}&rdquo;</h2>
+      <span class="section-count">0 stories</span>
+    </div>
+    <div class="empty-state">
+      <div class="empty-state-icon" aria-hidden="true">&#128269;</div>
+      <h3>Nothing matched &ldquo;{{ query }}&rdquo;</h3>
+      <p>Try a shorter phrase, check the spelling, or clear the topic and source filters.</p>
+      <div class="empty-state-actions">
+        <a href="{{ url_for('news.search', q=query) }}" class="btn btn--outline">Clear filters</a>
+        <a href="{{ url_for('news.local_news', city=active_city) }}" class="btn btn--ghost">Browse local news</a>
+      </div>
+    </div>
+  {% endif %}
+
+{% endblock %}

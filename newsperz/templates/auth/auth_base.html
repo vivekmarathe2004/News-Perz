@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Sign in to NewsPerz to save stories and personalize your feed." />
+  <meta name="csrf-token" content="{{ csrf_token or '' }}" />
+  <title>{% block title %}NewsPerz{% endblock %}</title>
+  <link rel="icon" href="{{ url_for('static', filename='img/logo.svg') }}" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}" />
+  <script nonce="{{ csp_nonce }}">
+    try {
+      var stored = localStorage.getItem('newsperz-theme');
+      if (!stored) stored = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', stored);
+    } catch (e) {}
+  </script>
+</head>
+<body class="auth-page">
+  <a class="skip-link" href="#auth-main">Skip to form</a>
+
+  <header class="auth-topbar">
+    <a href="{{ url_for('news.index') }}" class="header-logo" aria-label="NewsPerz home">
+      <span class="logo-mark" aria-hidden="true">N</span>
+      <span>News<span class="logo-perz">Perz</span></span>
+    </a>
+    <div class="auth-topbar-actions">
+      <button type="button" class="theme-toggle" id="themeToggle" aria-label="Switch to dark theme" title="Toggle theme">
+        <svg class="theme-toggle-icon theme-toggle-icon--sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/>
+        </svg>
+        <svg class="theme-toggle-icon theme-toggle-icon--moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>
+        </svg>
+      </button>
+      <a href="{{ url_for('news.index') }}" class="auth-back-link">&larr; Back to news</a>
+    </div>
+  </header>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-container" role="status" aria-live="polite">
+        {% for category, message in messages %}
+          <div class="flash flash--{{ category }}">
+            <span>{{ message }}</span>
+            <button class="flash-close" type="button" aria-label="Dismiss message">&times;</button>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <main class="auth-wrapper" id="auth-main">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="auth-footer-bar">
+    <p>&copy; {{ current_year }} NewsPerz</p>
+  </footer>
+
+  <script src="{{ url_for('static', filename='js/main.js') }}" nonce="{{ csp_nonce }}" defer></script>
+</body>
+</html>

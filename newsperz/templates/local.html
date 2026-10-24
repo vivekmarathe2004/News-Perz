@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% from "partials/article_card.html" import article_card with context %}
+
+{% block title %}Local news — {{ active_city }}{% if active_area %} ({{ active_area }}){% endif %} — NewsPerz{% endblock %}
+
+{% block content %}
+
+  {# ===== Location header, city form, area pills ===== #}
+  <div class="page-card">
+    <div class="page-card-head">
+      <div>
+        <p class="page-kicker">Location-first news</p>
+        <h1 class="page-title">{{ active_city }}{% if active_area %} &bull; {{ active_area }}{% endif %}</h1>
+        <p class="page-sub">Traffic, civic work, colleges and neighbourhood events around {{ active_city }}.</p>
+      </div>
+
+      <form class="filter-form" action="{{ url_for('news.local_news') }}" method="get">
+        <label class="form-label" for="local-city">City</label>
+        <div class="filter-form-row">
+          <select id="local-city" name="city" class="form-input form-select filter-select">
+            {% for city in cities_with_areas %}
+              <option value="{{ city | e }}" {% if active_city == city %}selected{% endif %}>{{ city }}</option>
+            {% endfor %}
+          </select>
+          <input type="hidden" name="area" value="{{ active_area | e }}" />
+          <input type="hidden" name="sort" value="{{ active_sort | e }}" />
+          <button type="submit" class="btn btn--primary btn--sm">Apply</button>
+        </div>
+      </form>
+    </div>
+
+    {% if available_areas %}
+      <div class="page-card-foot">
+        <div class="filter-bar-group">
+          <span class="perz-bar-label" id="local-areas-label">Areas in {{ active_city }}:</span>
+          <div class="filter-chip-group" role="group" aria-labelledby="local-areas-label">
+            <a href="{{ url_for('news.local_news', city=active_city, sort=active_sort) }}"
+               class="panel-chip{% if not active_area %} chip-active{% endif %}"
+               {% if not active_area %}aria-current="page"{% endif %}>All {{ active_city }}</a>
+            {% for area in available_areas %}
+              <a href="{{ url_for('news.local_news', city=active_city, area=area, sort=active_sort) }}"
+                 class="panel-chip{% if active_area == area %} chip-active{% endif %}"
+                 {% if active_area == area %}aria-current="page"{% endif %}>{{ area }}</a>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  {# ===== Local hero ===== #}
+  {% if featured_story %}
+    {% set h_url = featured_story.get('url') or '#' %}
+    {% set h_title = featured_story.get('title') or 'Local spotlight' %}
+    {% set h_desc = featured_story.get('description') or '' %}
+    {% set h_img = featured_story.get('urlToImage') or '' %}
+    {% set h_raw = featured_story.get('source') %}
+    {% set h_src = (h_raw.get('name') if h_raw is mapping else h_raw) or 'Local news' %}
+    {% set h_date = featured_story.get('publishedAt') or '' %}
+    {% set h_saved = h_url in (bookmarked_urls or []) %}
+
+    <div class="featured-card">
+      <div class="featured-body">
+        <div class="featured-labels">
+          <span class="label label--local"><span aria-hidden="true">&#128205;</span> Local spotlight</span>
+          <span class="label label--topic">{{ active_city }}{% if active_area %} &bull; {{ active_area }}{% endif %}</span>
+          {% if featured_story.get('is_preferred_source') %}
+            <span class="label label--source"><span aria-hidden="true">&#9733;</span> Preferred source</span>
+          {% endif %}
+        </div>
+
+        <h2 class="featured-title">
+          <a href="{{ h_url }}" target="_blank" rel="noopener noreferrer">{{ h_title }}</a>
+        </h2>
+
+        {% if h_desc %}<p class="featured-desc">{{ h_desc | clip(280) }}</p>{% endif %}
+
+        <div class="featured-footer">
+          <div class="featured-meta">
+            <span class="featured-source">{{ h_src }}</span>
+            <span class="featured-dot" aria-hidden="true">&bull;</span>
+            <time class="card-date" datetime="{{ h_date | e }}">{{ h_date | timeago or h_date[:10] or 'recent' }}</time>
+          </div>
+
+          <div class="featured-actions">
+            <button type="button"
+                    class="bookmark-btn bookmark-btn--lg{% if h_saved %} bookmarked{% endif %}"
+                    aria-pressed="{{ 'true' if h_saved else 'false' }}"
+                    aria-label="{{ 'Remove saved story: ' if h_saved else 'Save story: ' }}{{ h_title | e }}"
+                    data-url="{{ h_url | e }}"
+                    data-title="{{ h_title | e }}"
+                    data-source="{{ h_src | e }}"
+                    data-description="{{ h_desc | e }}"
+                    data-image="{{ h_img | e }}"
+                    data-published-at="{{ h_date | e }}">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+            </button>
+            <a href="{{ h_url }}" target="_blank" rel="noopener noreferrer" class="btn btn--primary btn--sm">
+              Read full story &#8599;
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="featured-image-wrap{% if not h_img %} thumb-failed{% endif %}">
+        {% if h_img %}
+          <img src="{{ h_img | e }}" alt="{{ h_title | truncate(60) }}" class="featured-image" loading="lazy" />
+        {% endif %}
+        <div class="featured-image-placeholder" aria-hidden="true"><span>&#128205;</span></div>
+      </div>
+    </div>
+  {% endif %}
+
+  {% if feed_ok and feed_partial %}
+    <div class="feed-notice feed-notice--warning">
+      <p>Some local providers timed out — showing the reports that did arrive.</p>
+      <a href="{{ url_for('news.local_news', city=active_city, area=active_area, sort=active_sort) }}" class="btn btn--ghost btn--sm">Reload</a>
+    </div>
+  {% endif %}
+
+  {# ===== Local feed ===== #}
+  {% if not feed_ok %}
+    <div class="feed-notice feed-notice--error">
+      <h2 class="section-title">Live provider unavailable</h2>
+      <p>We could not reach the news provider, so there are no {{ active_city }} stories to show.</p>
+      <a href="{{ url_for('news.local_news', city=active_city, area=active_area, sort=active_sort) }}" class="btn btn--outline btn--sm">Reload feed</a>
+    </div>
+  {% elif story_count %}
+    <div class="section-header">
+      <h2 class="section-title">More from {{ active_city }}{% if active_area %} &bull; {{ active_area }}{% endif %}</h2>
+      <span class="section-count">{{ story_count }} {% if story_count == 1 %}story{% else %}stories{% endif %}</span>
+    </div>
+
+    <div class="article-feed"
+         data-feed
+         data-feed-mode="{{ page_mode }}"
+         data-feed-offset="{{ offset }}"
+         data-feed-total="{{ total_stories }}"
+         data-feed-has-more="{{ 'true' if has_more else 'false' }}">
+      {% for article in articles %}
+        {{ article_card(article, bookmarked_urls) }}
+      {% endfor %}
+    </div>
+    <div class="feed-sentinel" data-feed-sentinel aria-hidden="true"></div>
+    <div class="feed-status" role="status" aria-live="polite">
+      <div class="skeleton-group" hidden>
+        <div class="skeleton skeleton--row"></div>
+        <div class="skeleton skeleton--row skeleton--row-short"></div>
+        <div class="skeleton skeleton--row"></div>
+      </div>
+      <p class="feed-status-text" hidden>Loading more stories&hellip;</p>
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <div class="empty-state-icon" aria-hidden="true">&#128205;</div>
+      <h3>Nothing local for {{ active_city }}{% if active_area %} &bull; {{ active_area }}{% endif %} yet</h3>
+      <p>No {{ active_city }} reports matched this area. Try the whole city or change your saved location.</p>
+      <div class="empty-state-actions">
+        <a href="{{ url_for('news.local_news', city=active_city, sort=active_sort) }}" class="btn btn--outline">All {{ active_city }}</a>
+        <a href="{{ url_for('news.interests') }}" class="btn btn--ghost">Change location</a>
+      </div>
+    </div>
+  {% endif %}
+
+{% endblock %}

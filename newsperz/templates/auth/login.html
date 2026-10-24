@@ -1,0 +1,55 @@
+{% extends "auth/auth_base.html" %}
+
+{% block title %}Sign in — NewsPerz{% endblock %}
+
+{% block content %}
+<div class="auth-card">
+  <div class="auth-panel">
+    <div class="auth-panel-logo">News<span>Perz</span></div>
+    <p class="auth-panel-text">
+      Your feed, ranked by the topics you follow and the city you live in.
+    </p>
+    <ul class="auth-panel-list">
+      <li>Live headlines from Google News</li>
+      <li>Local coverage for your neighbourhood</li>
+      <li>Saved stories that follow you across devices</li>
+    </ul>
+    <div class="auth-panel-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+  </div>
+
+  <div class="auth-body">
+    <div class="auth-hd">
+      <div class="auth-emoji" aria-hidden="true">&#128075;</div>
+      <h1 class="auth-title">Welcome back</h1>
+      <p class="auth-sub">Sign in to your personalized feed</p>
+    </div>
+
+    <form class="auth-form" action="{{ url_for('auth.login', next=safe_next) if safe_next else url_for('auth.login') }}" method="post" novalidate>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+
+      <div class="form-group">
+        <label for="email" class="form-label">Email address</label>
+        <input type="email" id="email" name="email" class="form-input"
+               placeholder="you@example.com" required autocomplete="email"
+               value="{{ form_email }}" />
+      </div>
+
+      <div class="form-group">
+        <label for="password" class="form-label">Password</label>
+        <div class="input-wrap">
+          <input type="password" id="password" name="password" class="form-input"
+                 placeholder="Enter your password" required autocomplete="current-password" />
+          <button type="button" class="toggle-pw" data-target="password" aria-label="Show password" aria-pressed="false">&#128065;</button>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn--primary btn--full">Sign in &rarr;</button>
+    </form>
+
+    <p class="auth-footer">
+      Don&rsquo;t have an account?
+      <a href="{{ url_for('auth.register', next=safe_next) if safe_next else url_for('auth.register') }}" class="auth-link">Create one &rarr;</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

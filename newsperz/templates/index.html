@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% from "partials/article_card.html" import article_card with context %}
+
+{% block title %}For You — NewsPerz{% endblock %}
+
+{% block content %}
+
+  {# ===== Personalization bar ===== #}
+  <div class="perz-bar">
+    <span class="perz-bar-label">Personalized for:</span>
+
+    <a href="{{ url_for('news.local_news', city=active_city, sort=active_sort) }}" class="perz-chip perz-chip--location">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z"/></svg>
+      <span>{{ active_city or location.city }}{% if active_area %} &bull; {{ active_area }}{% endif %}</span>
+      <span class="sr-only">Change location</span>
+    </a>
+
+    {% if active_topic %}
+      <a href="{{ url_for('news.index', city=active_city, sort=active_sort) }}" class="perz-chip perz-chip--topic chip-active" aria-current="page">
+        <span>{{ active_topic }} &times;</span><span class="sr-only">Clear topic filter</span>
+      </a>
+    {% else %}
+      {% for t in (topics or all_categories)[:4] %}
+        <a href="{{ url_for('news.index', topic=t, city=active_city, sort=active_sort) }}" class="perz-chip perz-chip--topic">
+          <span>{{ t }}</span>
+        </a>
+      {% endfor %}
+    {% endif %}
+
+    {% if active_source %}
+      <a href="{{ url_for('news.index', topic=active_topic, city=active_city, sort=active_sort) }}" class="perz-chip perz-chip--source chip-active" aria-current="page">
+        <span>{{ active_source }} &times;</span><span class="sr-only">Clear source filter</span>
+      </a>
+    {% endif %}
+
+    <div class="filter-chip-group filter-chip-group--push" role="group" aria-label="Sort stories">
+      <span class="perz-bar-label">Sort:</span>
+      {% for value, label in sort_options %}
+        <a href="{{ url_for('news.index', topic=active_topic, source=active_source, city=active_city, sort=value) }}"
+           class="perz-chip{% if active_sort == value %} chip-active{% endif %}"
+           {% if active_sort == value %}aria-current="page"{% endif %}>{{ label }}</a>
+      {% endfor %}
+
+      <a href="{{ url_for('news.interests') }}" class="perz-chip perz-chip--edit">
+        <span>+ Customize</span>
+      </a>
+    </div>
+  </div>
+
+  {# ===== Hero ===== #}
+  {% if featured_story %}
+    {% set h_url = featured_story.get('url') or '#' %}
+    {% set h_title = featured_story.get('title') or 'Featured story' %}
+    {% set h_desc = featured_story.get('description') or '' %}
+    {% set h_img = featured_story.get('urlToImage') or '' %}
+    {% set h_raw = featured_story.get('source') %}
+    {% set h_src = (h_raw.get('name') if h_raw is mapping else h_raw) or 'Top News' %}
+    {% set h_date = featured_story.get('publishedAt') or '' %}
+    {% set h_saved = h_url in (bookmarked_urls or []) %}
+
+    <div class="featured-card">
+      <div class="featured-body">
+        <div class="featured-labels">
+          <span class="label label--featured">Top match</span>
+          {% if featured_story.get('is_local_match') %}
+            <span class="label label--local"><span aria-hidden="true">&#128205;</span> Local match</span>
+          {% endif %}
+          {% if featured_story.get('is_preferred_source') %}
+            <span class="label label--source"><span aria-hidden="true">&#9733;</span> Preferred source</span>
+          {% endif %}
+          {% for reason in featured_story.get('match_reasons') or [] %}
+            {% if 'Topic:' in reason %}
+              <span class="label label--topic">{{ reason.replace('Topic: ', '') }}</span>
+            {% endif %}
+          {% endfor %}
+        </div>
+
+        <h1 class="featured-title">
+          <a href="{{ h_url }}" target="_blank" rel="noopener noreferrer">{{ h_title }}</a>
+        </h1>
+
+        {% if h_desc %}<p class="featured-desc">{{ h_desc | clip(280) }}</p>{% endif %}
+
+        <div class="featured-footer">
+          <div class="featured-meta">
+            <span class="featured-source">{{ h_src }}</span>
+            <span class="featured-dot" aria-hidden="true">&bull;</span>
+            <time class="card-date" datetime="{{ h_date | e }}">{{ h_date | timeago or h_date[:10] or 'recent' }}</time>
+          </div>
+
+          <div class="featured-actions">
+            <button type="button"
+                    class="bookmark-btn bookmark-btn--lg{% if h_saved %} bookmarked{% endif %}"
+                    aria-pressed="{{ 'true' if h_saved else 'false' }}"
+                    aria-label="{{ 'Remove saved story: ' if h_saved else 'Save story: ' }}{{ h_title | e }}"
+                    data-url="{{ h_url | e }}"
+                    data-title="{{ h_title | e }}"
+                    data-source="{{ h_src | e }}"
+                    data-description="{{ h_desc | e }}"
+                    data-image="{{ h_img | e }}"
+                    data-published-at="{{ h_date | e }}">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+            </button>
+            <a href="{{ h_url }}" target="_blank" rel="noopener noreferrer" class="btn btn--primary btn--sm">
+              Read story &#8599;
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="featured-image-wrap{% if not h_img %} thumb-failed{% endif %}">
+        {% if h_img %}
+          <img src="{{ h_img | e }}" alt="{{ h_title | truncate(60) }}" class="featured-image" loading="lazy" />
+        {% endif %}
+        <div class="featured-image-placeholder" aria-hidden="true"><span>&#128240;</span></div>
+      </div>
+    </div>
+  {% endif %}
+
+  {% if feed_ok and feed_partial %}
+    <div class="feed-notice feed-notice--warning">
+      <p>Some news providers timed out, so this feed may be missing stories.</p>
+      <a href="{{ url_for('news.index', topic=active_topic, source=active_source, city=active_city, sort=active_sort) }}" class="btn btn--ghost btn--sm">Reload</a>
+    </div>
+  {% endif %}
+
+  {# ===== Feed ===== #}
+  {% if not feed_ok %}
+    <div class="feed-notice feed-notice--error">
+      <h2 class="section-title">Live provider unavailable</h2>
+      <p>We could not reach the news provider, so there are no stories to show right now — nothing has been made up.</p>
+      <a href="{{ url_for('news.index', topic=active_topic, source=active_source, city=active_city, sort=active_sort) }}" class="btn btn--outline btn--sm">Reload feed</a>
+    </div>
+  {% elif story_count %}
+    <div class="section-header">
+      <h2 class="section-title">
+        {% if active_topic %}
+          {{ active_topic }} news
+        {% elif active_source %}
+          From {{ active_source }}
+        {% else %}
+          Ranked for you
+        {% endif %}
+      </h2>
+      <span class="section-count">{{ story_count }} {% if story_count == 1 %}story{% else %}stories{% endif %}</span>
+    </div>
+
+    <div class="article-feed"
+         data-feed
+         data-feed-mode="{{ page_mode }}"
+         data-feed-offset="{{ offset }}"
+         data-feed-total="{{ total_stories }}"
+         data-feed-has-more="{{ 'true' if has_more else 'false' }}">
+      {% for article in articles %}
+        {{ article_card(article, bookmarked_urls) }}
+      {% endfor %}
+    </div>
+    <div class="feed-sentinel" data-feed-sentinel aria-hidden="true"></div>
+    <div class="feed-status" role="status" aria-live="polite">
+      <div class="skeleton-group" hidden>
+        <div class="skeleton skeleton--row"></div>
+        <div class="skeleton skeleton--row skeleton--row-short"></div>
+        <div class="skeleton skeleton--row"></div>
+      </div>
+      <p class="feed-status-text" hidden>Loading more stories&hellip;</p>
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <div class="empty-state-icon" aria-hidden="true">&#128225;</div>
+      <h3>No matching stories yet</h3>
+      <p>Your filters are too narrow for the current news cycle — widen them to see more.</p>
+      <a href="{{ url_for('news.index') }}" class="btn btn--outline">Reset filters</a>
+    </div>
+  {% endif %}
+
+{% endblock %}
