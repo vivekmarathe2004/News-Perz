@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% from "partials/article_card.html" import article_card with context %}
+
+{% block title %}{{ category }} — Publisher — NewsPerz{% endblock %}
+
+{% block content %}
+
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="{{ url_for('news.index') }}" class="breadcrumb-link">For You</a>
+    <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
+    <span class="breadcrumb-current">{{ category }}</span>
+  </nav>
+
+  {# ===== Publisher header ===== #}
+  <div class="page-card">
+    <div class="page-card-head">
+      <div>
+        <p class="page-kicker">Publisher feed</p>
+        <h1 class="page-title">{{ category }}</h1>
+        <p class="page-sub">Every story we currently have from {{ category }}, newest first{% if active_city %}, with {{ active_city }} coverage ranked higher{% endif %}.</p>
+      </div>
+
+      {% if publishers and category in publishers %}
+        <a href="{{ url_for('news.interests') }}" class="btn btn--outline btn--sm">
+          Unfollow this source
+          <span class="sr-only">Manage followed sources in your preferences</span>
+        </a>
+      {% else %}
+        <a href="{{ url_for('news.interests') }}" class="btn btn--primary btn--sm">
+          Follow this source
+          <span class="sr-only">Opens your preferences</span>
+        </a>
+      {% endif %}
+    </div>
+
+    <div class="page-card-foot">
+      <div class="filter-bar-group">
+        <span class="perz-bar-label" id="source-sort-label">Sort:</span>
+        <div class="filter-chip-group" role="group" aria-labelledby="source-sort-label">
+          {% for value, label in sort_options %}
+            <a href="{{ url_for('news.source_news', source_name=category, sort=value, city=active_city) }}"
+               class="perz-chip perz-chip--topic{% if active_sort == value %} chip-active{% endif %}"
+               {% if active_sort == value %}aria-current="page"{% endif %}>{{ label }}</a>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ===== Publisher hero ===== #}
+  {% if featured_story %}
+    {% set h_url = featured_story.get('url') or '#' %}
+    {% set h_story = url_for('news.story', story_id=featured_story.get('story_id')) if featured_story.get('story_id') else h_url %}
+    {% set h_title = featured_story.get('title') or 'Featured story' %}
+    {% set h_desc = featured_story.get('description') or '' %}
+    {% set h_img = featured_story.get('urlToImage') or '' %}
+    {% set h_raw = featured_story.get('source') %}
+    {% set h_src = (h_raw.get('name') if h_raw is mapping else h_raw) or category %}
+    {% set h_date = featured_story.get('publishedAt') or '' %}
+    {% set h_saved = h_url in (bookmarked_urls or []) %}
+
+    <div class="featured-card">
+      <div class="featured-body">
+        <div class="featured-labels">
+          <span class="label label--featured">Latest lead</span>
+          <span class="label label--source">{{ category }}</span>
+          {% if featured_story.get('is_local_match') %}
+            <span class="label label--local"><span aria-hidden="true">&#128205;</span> Local match</span>
+          {% endif %}
+        </div>
+
+        <h2 class="featured-title">
+          <a href="{{ h_story }}">{{ h_title }}</a>
+        </h2>
+
+        {% if h_desc %}<p class="featured-desc">{{ h_desc | clip(280) }}</p>{% endif %}
+
+        <div class="featured-footer">
+          <div class="featured-meta">
+            <span class="featured-source">{{ h_src }}</span>
+            <span class="featured-dot" aria-hidden="true">&bull;</span>
+            <time class="card-date" datetime="{{ h_date | e }}">{{ h_date | timeago or h_date[:10] or 'recent' }}</time>
+          </div>
+
+          <div class="featured-actions">
+            <button type="button"
+                    class="bookmark-btn bookmark-btn--lg{% if h_saved %} bookmarked{% endif %}"
+                    aria-pressed="{{ 'true' if h_saved else 'false' }}"
+                    aria-label="{{ 'Remove saved story: ' if h_saved else 'Save story: ' }}{{ h_title | e }}"
+                    data-url="{{ h_url | e }}"
+                    data-title="{{ h_title | e }}"
+                    data-source="{{ h_src | e }}"
+                    data-description="{{ h_desc | e }}"
+                    data-image="{{ h_img | e }}"
+                    data-published-at="{{ h_date | e }}">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+            </button>
+            <a href="{{ h_story }}" class="btn btn--primary btn--sm btn--read">
+              Read story <span aria-hidden="true">&rarr;</span>
+            </a>
+            <a href="{{ h_url }}" target="_blank" rel="noopener noreferrer" class="btn btn--ghost btn--sm">
+              Source <span aria-hidden="true">&#8599;</span><span class="sr-only"> (opens in a new tab)</span>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="featured-image-wrap{% if not h_img %} thumb-failed{% endif %}">
+        {% if h_img %}
+          <img src="{{ h_img | e }}" alt="{{ h_title | truncate(60) }}" class="featured-image" loading="lazy" />
+        {% endif %}
+        <div class="featured-image-placeholder" aria-hidden="true"><span>&#128240;</span></div>
+      </div>
+    </div>
+  {% endif %}
+
+  {% if feed_ok and feed_partial %}
+    <div class="feed-notice feed-notice--warning">
+      <p>Some parts of {{ category }}&rsquo;s feed timed out — this list may be incomplete.</p>
+      <a href="{{ url_for('news.source_news', source_name=category, sort=active_sort, city=active_city) }}" class="btn btn--ghost btn--sm">Reload</a>
+    </div>
+  {% endif %}
+
+  {# ===== Publisher feed ===== #}
+  {% if not feed_ok %}
+    <div class="feed-notice feed-notice--error">
+      <h2 class="section-title">Live provider unavailable</h2>
+      <p>We could not reach the news provider, so we cannot show anything from {{ category }} right now.</p>
+      <a href="{{ url_for('news.source_news', source_name=category, sort=active_sort, city=active_city) }}" class="btn btn--outline btn--sm">Reload feed</a>
+    </div>
+  {% elif story_count %}
+    <div class="section-header">
+      <h2 class="section-title">More from {{ category }}</h2>
+      <span class="section-count">{{ story_count }} {% if story_count == 1 %}story{% else %}stories{% endif %}</span>
+    </div>
+
+    <div class="article-feed"
+         data-feed
+         data-feed-mode="{{ page_mode }}"
+         data-feed-source="{{ category }}"
+         data-feed-offset="{{ offset }}"
+         data-feed-total="{{ total_stories }}"
+         data-feed-has-more="{{ 'true' if has_more else 'false' }}">
+      {% for article in articles %}
+        {{ article_card(article, bookmarked_urls) }}
+      {% endfor %}
+    </div>
+    <div class="feed-sentinel" data-feed-sentinel aria-hidden="true"></div>
+    <div class="feed-status" role="status" aria-live="polite">
+      <div class="skeleton-group" hidden>
+        <div class="skeleton skeleton--row"></div>
+        <div class="skeleton skeleton--row skeleton--row-short"></div>
+        <div class="skeleton skeleton--row"></div>
+      </div>
+      <p class="feed-status-text" hidden>Loading more stories&hellip;</p>
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <div class="empty-state-icon" aria-hidden="true">&#128240;</div>
+      <h3>No recent stories from {{ category }}</h3>
+      <p>The provider has not published anything we can match for this source in the current window.</p>
+      <div class="empty-state-actions">
+        <a href="{{ url_for('news.source_news', source_name=category, sort='latest', city=active_city) }}" class="btn btn--outline">Force latest first</a>
+        <a href="{{ url_for('news.interests') }}" class="btn btn--ghost">Pick other sources</a>
+      </div>
+    </div>
+  {% endif %}
+
+{% endblock %}

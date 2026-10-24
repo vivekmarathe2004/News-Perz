@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import bookmark_btn %}
+
+{% block title %}{% if story %}{{ story.title }} — NewsPerz{% else %}Story unavailable — NewsPerz{% endif %}{% endblock %}
+
+{% block content %}
+
+{% if not story %}
+  <div class="empty-state story-missing">
+    <div class="empty-state-icon" aria-hidden="true">&#128340;</div>
+    <h1>This story preview has expired</h1>
+    <p>We keep previews for a limited time. Try a fresh feed or search for the headline.</p>
+    <div class="empty-state-actions">
+      <a href="{{ url_for('news.index') }}" class="btn btn--primary">Back to your feed</a>
+      <a href="{{ url_for('news.search') }}" class="btn btn--outline">Search news</a>
+    </div>
+  </div>
+{% else %}
+
+{% set src_name = story.source_name %}
+{% set story_date = story.publishedAt or '' %}
+{% set topic = story.category or '' %}
+
+<div class="reading-progress" data-reading-progress aria-hidden="true"><span></span></div>
+
+<nav class="breadcrumb story-breadcrumb" aria-label="Breadcrumb">
+  <a href="{{ url_for('news.index') }}" class="breadcrumb-link">For You</a>
+  <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
+  {% if topic %}
+    <a href="{{ url_for('news.category', category_name=topic) }}" class="breadcrumb-link">{{ topic }}</a>
+    <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
+  {% endif %}
+  <span class="breadcrumb-current">Story</span>
+</nav>
+
+<article class="story" data-story data-story-id="{{ story.story_id }}">
+
+  <header class="story-header">
+    <div class="story-labels">
+      {% if topic %}<span class="label label--topic">{{ topic }}</span>{% endif %}
+      {% if story.get('is_local_match') %}<span class="label label--local"><span aria-hidden="true">&#128205;</span> Local match</span>{% endif %}
+      {% if story.get('is_preferred_source') %}<span class="label label--source"><span aria-hidden="true">&#9733;</span> Preferred source</span>{% endif %}
+      <span class="label label--preview">In-app preview</span>
+    </div>
+
+    <h1 class="story-title">{{ story.title }}</h1>
+
+    {% if story.description and story.description | trim | lower != story.title | trim | lower %}
+      <p class="story-standfirst">{{ story.description | clip(320) }}</p>
+    {% endif %}
+
+    <div class="story-byline">
+      <span class="story-source-avatar" aria-hidden="true">{{ src_name[:1] | upper }}</span>
+      <div class="story-byline-text">
+        <a href="{{ url_for('news.source_news', source_name=src_name) }}" class="story-source-link">{{ src_name }}</a>
+        <p class="story-meta">
+          {% if story_date %}
+            <time datetime="{{ story_date | e }}">{{ story_date[:10] }}</time>
+            <span aria-hidden="true">&bull;</span>
+            <span>{{ story_date | timeago }}</span>
+            <span aria-hidden="true">&bull;</span>
+          {% endif %}
+          <span>{{ reading_minutes }} min read</span>
+        </p>
+      </div>
+      <div class="story-tools">
+        {{ bookmark_btn(story.url, story.title, src_name, story.description, story.urlToImage, story_date,
+                        story.url in (bookmarked_urls or []), 'bookmark-btn bookmark-btn--lg') }}
+        <button type="button" class="story-tool-btn" data-copy-link="{{ share_url | default('') }}"
+                title="Copy a link to this preview">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07L11.5 4.5"/>
+            <path d="M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 0 0 7.07 7.07l1.33-1.33"/>
+          </svg>
+          <span class="sr-only">Copy link to this story</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  {% if story.urlToImage %}
+    <figure class="story-figure">
+      <img src="{{ story.urlToImage | e }}" alt="" width="1200" height="675" loading="eager" decoding="async" />
+      <figcaption>Image via {{ src_name }}</figcaption>
+    </figure>
+  {% endif %}
+
+  <div class="story-layout">
+    <div class="story-main">
+      <section class="story-body" data-story-body="{{ story.story_id }}">
+        {% if paragraphs %}
+          {% for paragraph in paragraphs %}<p>{{ paragraph }}</p>{% endfor %}
+        {% else %}
+          <div class="story-loading" data-story-loading>
+            <span class="story-spinner" aria-hidden="true"></span>
+            <p>Fetching a readable preview from {{ src_name }}&hellip;</p>
+          </div>
+          <noscript>
+            <p class="story-body-fallback">A readable preview needs JavaScript. Open the full story at {{ src_name }} below.</p>
+          </noscript>
+        {% endif %}
+      </section>
+
+      <p class="story-body-note" data-story-note {% if paragraphs %}hidden{% endif %}>
+        Preview only — we show a short excerpt and link to the publisher for the full report.
+      </p>
+
+      {% if match_reasons %}
+        <section class="story-why">
+          <h2>Why this is in your feed</h2>
+          <ul class="story-reasons">
+            {% for reason in match_reasons %}
+              <li><span aria-hidden="true">&#10003;</span> {{ reason }}</li>
+            {% endfor %}
+          </ul>
+          <a href="{{ url_for('news.interests') }}" class="panel-text-link">Adjust your preferences &rarr;</a>
+        </section>
+      {% endif %}
+
+      <section class="story-source-cta">
+        <div class="story-source-cta-copy">
+          <p class="story-source-cta-kicker">Continue reading</p>
+          <h2>Full story at {{ src_name }}</h2>
+          <p>NewsPerz shows a preview so you can decide what matters. The complete report, images and updates stay with the publisher.</p>
+        </div>
+        <a href="{{ story.url }}" target="_blank" rel="noopener noreferrer" class="btn btn--primary">
+          Open full story <span aria-hidden="true">&#8599;</span><span class="sr-only"> (opens in a new tab)</span>
+        </a>
+      </section>
+
+      <div class="story-footer-actions">
+        <a href="{{ url_for('news.index') }}" class="btn btn--ghost">&larr; Back to feed</a>
+        <a href="{{ url_for('news.search', q=story.title | clip(90)) }}" class="btn btn--outline">Find related coverage</a>
+      </div>
+    </div>
+
+    <aside class="story-aside" aria-label="Story details">
+      <section class="story-aside-card">
+        <h2 class="story-aside-title">Story details</h2>
+        <dl class="story-facts">
+          <div>
+            <dt>Published</dt>
+            <dd>
+              {% if story_date %}
+                <time datetime="{{ story_date | e }}">{{ story_date[:10] }}</time>
+                <span class="story-fact-sub">{{ story_date | timeago }}</span>
+              {% else %}
+                Recently
+              {% endif %}
+            </dd>
+          </div>
+          <div>
+            <dt>Source</dt>
+            <dd><a href="{{ url_for('news.source_news', source_name=src_name) }}">{{ src_name }}</a></dd>
+          </div>
+          {% if topic %}
+            <div>
+              <dt>Topic</dt>
+              <dd><a href="{{ url_for('news.category', category_name=topic) }}">{{ topic }}</a></dd>
+            </div>
+          {% endif %}
+          <div>
+            <dt>Reading</dt>
+            <dd>{{ reading_minutes }} min preview</dd>
+          </div>
+        </dl>
+      </section>
+
+      {% if related %}
+        <section class="story-aside-card">
+          <h2 class="story-aside-title">More coverage</h2>
+          <ul class="story-related">
+            {% for item in related %}
+              <li>
+                <a href="{{ url_for('news.story', story_id=item.story_id) }}" class="story-related-link">
+                  <span class="story-related-source">{{ item.source_name }}</span>
+                  <span class="story-related-title">{{ item.title }}</span>
+                  {% if item.publishedAt %}
+                    <time class="story-related-time" datetime="{{ item.publishedAt | e }}">{{ item.publishedAt | timeago }}</time>
+                  {% endif %}
+                </a>
+              </li>
+            {% endfor %}
+          </ul>
+        </section>
+      {% endif %}
+    </aside>
+  </div>
+
+  <p class="story-copy-status" role="status" aria-live="polite" data-copy-status></p>
+</article>
+{% endif %}
+{% endblock %}

@@ -1,12 +1,13 @@
 """NewsPerz entry point.
 
-`python app.py` runs the dev server (reloader only when FLASK_DEBUG=1) or Waitress.
-For production use `waitress-serve --call 'newsperz:create_app'` behind a proxy.
+`python app.py` runs Flask's dev server when FLASK_DEBUG is set, and Waitress
+otherwise. For production use `waitress-serve --call 'backend:create_app'`
+behind a proxy.
 """
 
 import os
 
-from newsperz import create_app
+from backend import create_app
 
 app = create_app()
 

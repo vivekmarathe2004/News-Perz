@@ -1,1 +1,0 @@
-# newsperz services package
