@@ -6,6 +6,7 @@ the provider module changes again.
 """
 
 import logging
+import math
 from dataclasses import dataclass, field
 
 from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, url_for
@@ -15,9 +16,17 @@ from flask_wtf.csrf import CSRFError
 from newsperz.bookmarks import add_bookmark, get_bookmarked_urls, get_saved_items, remove_bookmark
 from newsperz.config import CATEGORIES, CITIES_WITH_AREAS, PUBLISHERS, SORT_OPTIONS
 from newsperz.db import is_available, scalar
-from newsperz.dsa.ranking import rank_articles, search_articles
+from newsperz.dsa.ranking import compute_article_score, rank_articles, search_articles
 from newsperz.prefs import VALID_SORTS, get_user_preferences, save_preferences
 from newsperz.services.news_fetcher import get_real_news
+from newsperz.story_store import (
+    get_related_articles,
+    get_story,
+    get_story_content,
+    parse_body_paragraphs,
+    read_story_body,
+    remember_articles,
+)
 
 log = logging.getLogger(__name__)
 
@@ -118,6 +127,9 @@ def fetch_ranked(q: FeedQuery, limit, *, offset=0):
 
     if q.query:
         raw = search_articles(raw, q.query)
+
+    # Persist the fetched window so every card can open an in-app story page.
+    raw = remember_articles(raw)
 
     ranked = rank_articles(
         articles=raw,
@@ -399,6 +411,75 @@ def handle_csrf_error(error):
                            error_message='Please reload the page and try again.',
                            all_categories=CATEGORIES, all_publishers=PUBLISHERS,
                            location=None, topics=[], page_mode='error', current_year=None), 400
+
+
+def _story_reading_minutes(text):
+    words = len(str(text or '').split())
+    return max(1, math.ceil(words / 220)) if words else 1
+
+
+@news_bp.route('/story/<story_id>')
+def story(story_id):
+    """Read a story inside NewsPerz, with the publisher one click away."""
+    item = get_story(story_id)
+    if not item:
+        return render_template(
+            'story.html',
+            story=None,
+            story_id=story_id,
+            related=[],
+            paragraphs=[],
+            content_status='missing',
+            match_reasons=[],
+            reading_minutes=0,
+            bookmarked_urls=[],
+            page_mode='story',
+        ), 404
+
+    location, topics, publishers, _sort = get_user_preferences()
+    _score, reasons = compute_article_score(
+        item,
+        topics=topics,
+        city=location.get('city'),
+        area=location.get('area'),
+        publishers=publishers,
+    )
+    content = get_story_content(story_id)
+    paragraphs = []
+    if content.get('status') == 'ok' and content.get('body'):
+        paragraphs = parse_body_paragraphs(content['body'])
+    reading_minutes = _story_reading_minutes(
+        ' '.join(paragraphs) if paragraphs else item.get('description')
+    )
+    return render_template(
+        'story.html',
+        story=item,
+        story_id=story_id,
+        related=get_related_articles(item, limit=4),
+        paragraphs=paragraphs,
+        content_status=content.get('status', '') if content else '',
+        match_reasons=reasons,
+        reading_minutes=reading_minutes,
+        bookmarked_urls=get_bookmarked_urls(),
+        share_url=url_for('news.story', story_id=story_id, _external=True),
+        page_mode='story',
+    )
+
+
+@news_bp.route('/api/story/<story_id>/body')
+def story_body(story_id):
+    """Lazily extract readable text for a story and cache it."""
+    item = get_story(story_id)
+    if not item:
+        return jsonify({'status': 'missing', 'paragraphs': []}), 404
+    result = read_story_body(item)
+    paragraphs = parse_body_paragraphs(result.get('body')) if result.get('status') == 'ok' else []
+    return jsonify({
+        'status': result.get('status', 'error'),
+        'story_id': story_id,
+        'paragraphs': paragraphs,
+        'reading_minutes': _story_reading_minutes(' '.join(paragraphs)),
+    })
 
 
 @news_bp.route('/healthz')
